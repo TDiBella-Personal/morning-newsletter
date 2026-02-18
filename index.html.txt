@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Morning Rundown</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Rundown">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f0f5;min-height:100vh;color:#333}
+        body.dark-mode{background:#1a1a2e;color:#e0e0e0}
+        @media all and (display-mode:standalone){
+            .banner{padding-top:calc(env(safe-area-inset-top,20px)+16px)}
+            .dark-mode-toggle,.refresh-btn,.settings-btn,.collapse-all-btn{top:calc(env(safe-area-inset-top,16px)+4px)}
+        }
+        .banner{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:32px 20px 24px;text-align:center;color:#fff}
+        .banner h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px;text-shadow:1px 1px 3px rgba(0,0,0,.15)}
+        .banner .date{font-size:14px;opacity:.9;font-weight:500}
+        .banner .tagline{font-size:13px;opacity:.75;margin-top:6px}
+
+        /* Layout */
+        .page-layout{max-width:900px;margin:0 auto;padding:0 16px 40px;display:flex;gap:20px;align-items:flex-start}
+        .sidebar{width:200px;flex-shrink:0;position:sticky;top:20px;display:none}
+        .feed{flex:1;min-width:0}
+        @media(min-width:768px){}
+        @media(max-width:767px){.sidebar{display:none}.page-layout{padding:0 10px 30px}}
+
+        /* Weather Widget (sidebar) */
+        .weather-widget{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 14px rgba(0,0,0,.06);text-align:center}
+        .dark-mode .weather-widget{background:#262640;box-shadow:0 2px 14px rgba(0,0,0,.25)}
+        .ww-icon{font-size:40px;margin-bottom:8px}.ww-temp{font-size:22px;font-weight:700}
+        .ww-feels{font-size:12px;color:#888;margin-top:2px}.ww-desc{font-size:13px;color:#666;margin-top:8px;line-height:1.4}
+        .dark-mode .ww-desc{color:#aaa}.ww-location{font-size:11px;color:#aaa;margin-top:6px}.ww-humidity{font-size:11px;color:#aaa;margin-top:2px}
+
+        /* Weather Strip (mobile) */
+        .mobile-weather .weather-strip{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#ffecd2,#fcb69f);border-radius:12px;padding:14px 18px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+        .dark-mode .mobile-weather .weather-strip{background:linear-gradient(135deg,#4a3728,#5c3a2e)}
+        .mobile-weather .weather-icon{font-size:32px}.mobile-weather .weather-info{flex:1}
+        .mobile-weather .weather-temp{font-size:18px;font-weight:700}.mobile-weather .weather-desc{font-size:13px;color:#8b5e3c}
+        .dark-mode .mobile-weather .weather-desc{color:#c9a07a}
+
+        /* Greeting */
+        .greeting-card{background:#fff;border-radius:14px;padding:20px 22px;margin:-16px 0 20px;position:relative;box-shadow:0 4px 20px rgba(0,0,0,.08)}
+        .dark-mode .greeting-card{background:#262640;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+        .greeting-card .greeting{font-size:20px;font-weight:700;margin-bottom:6px}
+        .greeting-card .summary{font-size:14px;color:#666;line-height:1.5}
+        .dark-mode .greeting-card .summary{color:#aaa}
+
+        /* Section */
+        .section{background:#fff;border-radius:14px;margin-bottom:18px;overflow:hidden;box-shadow:0 2px 14px rgba(0,0,0,.06)}
+        .dark-mode .section{background:#262640;box-shadow:0 2px 14px rgba(0,0,0,.25)}
+        .section-header{display:flex;align-items:center;gap:10px;padding:16px 20px 12px;border-bottom:1px solid #f0f0f5;cursor:pointer;user-select:none;-webkit-user-select:none}
+        .dark-mode .section-header{border-bottom-color:#333355}
+        .section-header.collapsed{border-bottom:none}
+        .section-icon{font-size:20px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:10px;flex-shrink:0}
+        .section-title{font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;flex:1}
+        .collapse-chevron{font-size:14px;color:#aaa;transition:transform .2s;flex-shrink:0}
+        .section-header.collapsed .collapse-chevron{transform:rotate(-90deg)}
+        .section-body{overflow:hidden;transition:max-height .3s ease}
+        .section-body.collapsed{max-height:0!important}
+
+        /* Section themes */
+        .section-headlines .section-icon{background:#eef0ff}.section-headlines .section-title{color:#667eea}
+        .section-tech .section-icon{background:#e8f7ed}.section-tech .section-title{color:#27ae60}
+        .section-sports .section-icon{background:#fff3e6}.section-sports .section-title{color:#e67e22}
+        .section-music .section-icon{background:#fce4ec}.section-music .section-title{color:#e91e63}
+        .section-work .section-icon{background:#e3f2fd}.section-work .section-title{color:#2196f3}
+        .section-interesting .section-icon{background:#f3e5f5}.section-interesting .section-title{color:#9c27b0}
+        .section-science .section-icon{background:#e0f7fa}.section-science .section-title{color:#00838f}
+        .section-gaming .section-icon{background:#fce4ec}.section-gaming .section-title{color:#c62828}
+        .section-movies .section-icon{background:#fff8e1}.section-movies .section-title{color:#f57f17}
+        .section-food .section-icon{background:#f1f8e9}.section-food .section-title{color:#558b2f}
+        .section-finance .section-icon{background:#e8eaf6}.section-finance .section-title{color:#283593}
+        .section-health .section-icon{background:#fce4ec}.section-health .section-title{color:#ad1457}
+        .section-world .section-icon{background:#e0f2f1}.section-world .section-title{color:#00695c}
+        .section-ai .section-icon{background:#e8eaf6}.section-ai .section-title{color:#5c6bc0}
+        .section-custom .section-icon{background:#ede7f6}.section-custom .section-title{color:#4527a0}
+        .section-interesting .story-headline{font-weight:400}
+
+        .dark-mode .section-headlines .section-icon{background:#2a2d4a}
+        .dark-mode .section-tech .section-icon{background:#1e3a28}
+        .dark-mode .section-sports .section-icon{background:#3a2e1e}
+        .dark-mode .section-music .section-icon{background:#3a1e28}
+        .dark-mode .section-work .section-icon{background:#1e2e3a}
+        .dark-mode .section-interesting .section-icon{background:#2e1e3a}
+        .dark-mode .section-science .section-icon{background:#1a3038}
+        .dark-mode .section-gaming .section-icon{background:#3a1e1e}
+        .dark-mode .section-movies .section-icon{background:#38301a}
+        .dark-mode .section-food .section-icon{background:#2a3820}
+        .dark-mode .section-finance .section-icon{background:#1e2040}
+        .dark-mode .section-health .section-icon{background:#381a28}
+        .dark-mode .section-world .section-icon{background:#1a3830}
+        .dark-mode .section-ai .section-icon{background:#1e2040}
+        .dark-mode .section-custom .section-icon{background:#281a38}
+
+        /* Stories */
+        .story{padding:14px 20px;border-bottom:1px solid #f5f5fa;transition:background .15s}
+        .story:last-child{border-bottom:none}
+        .dark-mode .story{border-bottom-color:#333355}
+        .story:hover{background:#fafaff}.dark-mode .story:hover{background:#2d2d4a}
+        .story-headline{font-size:15px;font-weight:600;margin-bottom:4px;line-height:1.4}
+        .story-headline a{color:inherit;text-decoration:none}.story-headline a:hover{text-decoration:underline}
+        .story-summary{font-size:13px;color:#777;line-height:1.5}.dark-mode .story-summary{color:#999}
+        .story-meta{font-size:11px;color:#aaa;margin-top:6px;display:flex;align-items:center;gap:8px}
+        .story-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase}
+        .tag-hot{background:#ffe0e0;color:#d32f2f}.tag-new{background:#e0f0ff;color:#1976d2}.tag-trending{background:#e8f5e9;color:#388e3c}
+        .dark-mode .tag-hot{background:#4a2020}.dark-mode .tag-new{background:#1e2e3a}.dark-mode .tag-trending{background:#1e3a28}
+
+        /* Quote */
+        .quote-card{background:linear-gradient(135deg,#667eea,#764ba2);border-radius:14px;padding:24px 22px;margin-bottom:18px;color:#fff;text-align:center}
+        .quote-text{font-size:16px;font-style:italic;line-height:1.6;margin-bottom:10px}.quote-author{font-size:13px;opacity:.85;font-weight:600}
+
+        /* On This Day */
+        .on-this-day{background:linear-gradient(135deg,#a8edea,#fed6e3);border-radius:14px;padding:18px 22px;margin-bottom:18px}
+        .dark-mode .on-this-day{background:linear-gradient(135deg,#1e3a38,#3a1e2e)}
+        .on-this-day h3{font-size:14px;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+        .on-this-day p{font-size:13px;line-height:1.5;color:#555}.dark-mode .on-this-day p{color:#bbb}
+
+        /* Footer */
+        .footer{text-align:center;padding:20px;color:#aaa;font-size:12px}.footer a{color:#667eea;text-decoration:none}
+
+        /* Fixed buttons */
+        .dark-mode-toggle{position:fixed;top:16px;right:16px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
+        .settings-btn{position:fixed;top:16px;right:62px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);transition:transform .3s}
+        .settings-btn:active{transform:rotate(60deg)}
+        .collapse-all-btn{position:fixed;top:16px;right:108px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:16px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
+        .refresh-btn{position:fixed;top:16px;left:16px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:18px;cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);transition:transform .5s}
+        .refresh-btn.spinning{transform:rotate(360deg)}
+
+        /* Loading */
+        .loading{text-align:center;padding:30px 20px;color:#999}
+        .loading .spinner{display:inline-block;width:24px;height:24px;border:3px solid #e0e0e0;border-top-color:#667eea;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:10px}
+        @keyframes spin{to{transform:rotate(360deg)}}.loading p{font-size:13px}
+        .skeleton{background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+        .dark-mode .skeleton{background:linear-gradient(90deg,#333355 25%,#3d3d60 50%,#333355 75%);background-size:200% 100%}
+        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        .skeleton-line{height:14px;margin-bottom:8px}.skeleton-line.short{width:60%}.skeleton-line.medium{width:80%}
+
+        @media(max-width:480px){.banner h1{font-size:24px}.greeting-card{padding:16px 18px}.story{padding:12px 16px}}
+
+        /* Install banner */
+        .install-banner{position:fixed;bottom:0;left:0;right:0;background:#fff;padding:16px 20px;display:flex;align-items:center;gap:14px;box-shadow:0 -4px 20px rgba(0,0,0,.1);z-index:200;transform:translateY(100%);transition:transform .4s ease}
+        .install-banner.visible{transform:translateY(0)}.dark-mode .install-banner{background:#262640;box-shadow:0 -4px 20px rgba(0,0,0,.4)}
+        .install-banner .install-icon{width:48px;height:48px;border-radius:12px;flex-shrink:0}
+        .install-banner .install-text{flex:1}.install-banner .install-title{font-size:15px;font-weight:700;margin-bottom:2px}
+        .install-banner .install-desc{font-size:12px;color:#888}
+        .install-banner .install-btn{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+        .install-banner .install-close{background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;padding:4px}
+
+        /* Drawer */
+        .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;opacity:0;pointer-events:none;transition:opacity .3s}
+        .drawer-overlay.open{opacity:1;pointer-events:auto}
+        .drawer{position:fixed;top:0;right:0;bottom:0;width:min(380px,90vw);background:#fff;z-index:301;transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden}
+        .drawer.open{transform:translateX(0)}.dark-mode .drawer{background:#1e1e36}
+        .drawer-header{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 16px;border-bottom:1px solid #eee;flex-shrink:0}
+        .dark-mode .drawer-header{border-bottom-color:#333355}
+        .drawer-header h2{font-size:18px;font-weight:700}
+        .drawer-close{width:36px;height:36px;border-radius:50%;border:none;background:#f0f0f5;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .dark-mode .drawer-close{background:#333355;color:#e0e0e0}
+        .drawer-body{flex:1;overflow-y:auto;padding:16px 20px 30px;-webkit-overflow-scrolling:touch}
+        .drawer-section{margin-bottom:24px}
+        .drawer-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:12px}
+        .drawer-footer{padding:16px 20px;border-top:1px solid #eee;flex-shrink:0}.dark-mode .drawer-footer{border-top-color:#333355}
+        .save-btn{width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+        .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0f0f5}
+        .dark-mode .toggle-row{border-bottom-color:#2a2a45}.toggle-row:last-child{border-bottom:none}
+        .toggle-label{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500}.toggle-label .toggle-emoji{font-size:18px}
+        .switch{position:relative;width:44px;height:24px;flex-shrink:0}
+        .switch input{opacity:0;width:0;height:0}
+        .switch .slider{position:absolute;inset:0;background:#ccc;border-radius:24px;cursor:pointer;transition:background .2s}
+        .switch .slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s}
+        .switch input:checked+.slider{background:#667eea}.switch input:checked+.slider::before{transform:translateX(20px)}
+        .stepper{display:flex;align-items:center;gap:4px}
+        .stepper-btn{width:30px;height:30px;border-radius:8px;border:1px solid #ddd;background:#fff;font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .dark-mode .stepper-btn{background:#333355;border-color:#444466;color:#e0e0e0}
+        .stepper-val{width:32px;text-align:center;font-size:15px;font-weight:600}
+        .add-topic-row{display:flex;gap:8px;margin-top:8px}
+        .add-topic-row input{flex:1;padding:10px 14px;border-radius:10px;border:1px solid #ddd;font-size:14px;background:#fff;color:#333}
+        .dark-mode .add-topic-row input{background:#262640;border-color:#444466;color:#e0e0e0}
+        .add-topic-btn{padding:10px 16px;border-radius:10px;border:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+        .custom-topics-list{margin-top:10px}
+        .custom-topic-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;background:#eef0ff;font-size:13px;font-weight:500;color:#667eea;margin:4px 4px 4px 0}
+        .dark-mode .custom-topic-chip{background:#2a2d4a}
+        .custom-topic-chip .remove-topic{background:none;border:none;color:#667eea;font-size:14px;cursor:pointer;padding:0;line-height:1}
+        .prefs-url-input{width:100%;padding:10px 14px;border-radius:10px;border:1px solid #ddd;font-size:13px;background:#fff;color:#333;margin-top:8px}
+        .dark-mode .prefs-url-input{background:#262640;border-color:#444466;color:#e0e0e0}
+        .prefs-hint{font-size:11px;color:#aaa;margin-top:6px;line-height:1.4}
+
+        /* Context Window / Requests */
+        .requests-textarea{width:100%;min-height:120px;padding:12px 14px;border-radius:10px;border:1px solid #ddd;font-size:13px;font-family:inherit;background:#fff;color:#333;resize:vertical;line-height:1.6}
+        .dark-mode .requests-textarea{background:#262640;border-color:#444466;color:#e0e0e0}
+        .requests-textarea::placeholder{color:#bbb}
+        .dark-mode .requests-textarea::placeholder{color:#666}
+        .requests-active{background:#f0fdf4;border-radius:10px;padding:12px 14px;margin-top:10px;font-size:12px;line-height:1.6;color:#555}
+        .dark-mode .requests-active{background:#1e3a28;color:#aaa}
+        .requests-active-title{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#27ae60;margin-bottom:6px}
+        .requests-keyword{display:inline-block;padding:2px 8px;border-radius:4px;background:#e8f5e9;color:#2e7d32;font-size:11px;font-weight:600;margin:2px 3px 2px 0}
+        .dark-mode .requests-keyword{background:#1e3a28;color:#4caf50}
+    </style>
+</head>
+<body>
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()">&#x1F319;</button>
+    <button class="settings-btn" onclick="openDrawer()" title="Settings">&#x2699;&#xFE0F;</button>
+    <button class="collapse-all-btn" onclick="toggleAllSections()" title="Expand/Collapse All" id="collapseAllBtn">&#x2195;&#xFE0F;</button>
+    <button class="refresh-btn" onclick="refreshNewsletter()" title="Refresh">&#x1F504;</button>
+
+    <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+    <div class="drawer" id="drawer">
+        <div class="drawer-header"><h2>&#x2699;&#xFE0F; My Rundown</h2><button class="drawer-close" onclick="closeDrawer()">&times;</button></div>
+        <div class="drawer-body" id="drawerBody"></div>
+        <div class="drawer-footer"><button class="save-btn" onclick="saveAndReload()">Save &amp; Refresh</button></div>
+    </div>
+
+    <div class="install-banner" id="installBanner">
+        <img class="install-icon" src="icon-192.png" alt="Icon">
+        <div class="install-text"><div class="install-title">Add to Home Screen</div><div class="install-desc" id="installDesc">Get your newsletter with one tap</div></div>
+        <button class="install-btn" id="installBtn" onclick="handleInstall()">Add</button>
+        <button class="install-close" onclick="dismissInstall()">&times;</button>
+    </div>
+
+    <div class="banner">
+        <h1>The Morning Rundown</h1>
+        <div class="date" id="currentDate"></div>
+        <div class="tagline">Your daily dose of what matters</div>
+    </div>
+
+    <div class="page-layout">
+        <div class="sidebar"><div id="weatherWidget"></div></div>
+        <div class="feed">
+            <div class="greeting-card"><div class="greeting" id="greeting"></div><div class="summary" id="daySummary"></div></div>
+            <div class="mobile-weather" id="mobileWeather"></div>
+            <div id="newsletterContent"><div class="loading"><div class="spinner"></div><p>Brewing your morning newsletter...</p></div></div>
+        </div>
+    </div>
+
+    <script>
+        const SECTION_REGISTRY = {
+            'top stories':          { id: 'headlines', icon: '\u{1F4F0}', theme: 'section-headlines', subreddits: ['news'], hnMix: true },
+            'world news':           { id: 'world', icon: '\u{1F30D}', theme: 'section-world', subreddits: ['worldnews'], hnMix: false },
+            'tech':                 { id: 'tech', icon: '\u{1F4BB}', theme: 'section-tech', subreddits: ['technology'], hnMix: true },
+            'ai & machine learning':{ id: 'ai', icon: '\u{1F916}', theme: 'section-ai', subreddits: ['artificial','MachineLearning','ChatGPT','ClaudeAI'], hnMix: false },
+            'science':              { id: 'science', icon: '\u{1F52C}', theme: 'section-science', subreddits: ['science'], hnMix: false },
+            'sports':               { id: 'sports', icon: '\u26BD', theme: 'section-sports', subreddits: ['sports'], hnMix: false },
+            'gaming':               { id: 'gaming', icon: '\u{1F3AE}', theme: 'section-gaming', subreddits: ['gaming'], hnMix: false },
+            'movies & tv':          { id: 'movies', icon: '\u{1F3AC}', theme: 'section-movies', subreddits: ['movies'], hnMix: false },
+            'music':                { id: 'music', icon: '\u{1F3B5}', theme: 'section-music', subreddits: ['Music'], hnMix: false },
+            'food & cooking':       { id: 'food', icon: '\u{1F373}', theme: 'section-food', subreddits: ['food'], hnMix: false },
+            'finance & money':      { id: 'finance', icon: '\u{1F4B0}', theme: 'section-finance', subreddits: ['personalfinance'], hnMix: false },
+            'health & fitness':     { id: 'health', icon: '\u{1F3CB}\uFE0F', theme: 'section-health', subreddits: ['fitness'], hnMix: false },
+            'work & productivity':  { id: 'work', icon: '\u{1F4BC}', theme: 'section-work', subreddits: ['productivity'], hnMix: false },
+            'interesting finds':    { id: 'interesting', icon: '\u{1F9E0}', theme: 'section-interesting', subreddits: ['todayilearned'], hnMix: false },
+        };
+        const QUOTES = [
+            { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+            { text: "Innovation distinguishes between a leader and a follower.", author: "Steve Jobs" },
+            { text: "Stay hungry, stay foolish.", author: "Stewart Brand" },
+            { text: "The best time to plant a tree was 20 years ago. The second best time is now.", author: "Chinese Proverb" },
+            { text: "Done is better than perfect.", author: "Sherrod White" },
+            { text: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt" },
+            { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
+            { text: "Success is not final, failure is not fatal: it is the courage to continue that counts.", author: "Winston Churchill" },
+            { text: "What you do today can improve all your tomorrows.", author: "Ralph Marston" },
+            { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
+            { text: "Creativity is intelligence having fun.", author: "Albert Einstein" },
+            { text: "The only limit to our realization of tomorrow is our doubts of today.", author: "Franklin D. Roosevelt" },
+            { text: "Do what you can, with what you have, where you are.", author: "Theodore Roosevelt" },
+            { text: "Everything you've ever wanted is on the other side of fear.", author: "George Addair" },
+            { text: "In the middle of difficulty lies opportunity.", author: "Albert Einstein" },
+            { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
+            { text: "Not all those who wander are lost.", author: "J.R.R. Tolkien" },
+            { text: "Life is what happens when you're busy making other plans.", author: "John Lennon" },
+            { text: "The only impossible journey is the one you never begin.", author: "Tony Robbins" },
+            { text: "Music expresses that which cannot be said and on which it is impossible to be silent.", author: "Victor Hugo" },
+        ];
+        const ON_THIS_DAY = {
+            "01-01":"On this day in 1983, the Internet was born when ARPANET switched to TCP/IP.",
+            "01-15":"On this day in 2001, Wikipedia was launched by Jimmy Wales and Larry Sanger.",
+            "01-27":"On this day in 1756, Wolfgang Amadeus Mozart was born in Salzburg, Austria.",
+            "02-01":"On this day in 2003, the Space Shuttle Columbia disintegrated during re-entry.",
+            "02-04":"On this day in 2004, Mark Zuckerberg launched Facebook from his Harvard dorm room.",
+            "02-06":"On this day in 1952, Queen Elizabeth II began her reign after the death of King George VI.",
+            "02-07":"On this day in 1964, The Beatles arrived in New York City for the first time.",
+            "02-12":"On this day in 1809, Abraham Lincoln and Charles Darwin were both born.",
+            "02-14":"On this day in 2005, YouTube was founded by Steve Chen, Chad Hurley, and Jawed Karim.",
+            "02-16":"On this day in 1923, Howard Carter opened the sealed doorway to King Tutankhamun's burial chamber.",
+            "02-17":"On this day in 1996, Deep Blue, a chess computer, defeated Garry Kasparov for the first time.",
+            "02-22":"On this day in 1997, scientists in Scotland announced the cloning of Dolly the sheep.",
+            "02-28":"On this day in 1953, James Watson and Francis Crick announced the discovery of DNA's double helix.",
+            "03-08":"On this day in 1979, Philips demonstrated the first compact disc publicly.",
+            "03-12":"On this day in 1989, Tim Berners-Lee submitted his proposal for the World Wide Web.",
+            "03-14":"On this day in 1879, Albert Einstein was born in Ulm, Germany. Happy Pi Day!",
+            "03-21":"On this day in 2006, Jack Dorsey posted the first-ever tweet.",
+            "04-01":"On this day in 1976, Steve Jobs and Steve Wozniak founded Apple Computer Company.",
+            "04-12":"On this day in 1961, Yuri Gagarin became the first human in space.",
+            "04-22":"On this day in 1970, the first Earth Day was celebrated across the United States.",
+            "05-01":"On this day in 1931, the Empire State Building was officially opened.",
+            "05-25":"On this day in 1977, Star Wars was released in theaters for the first time.",
+            "06-07":"On this day in 1954, Alan Turing, father of computer science, passed away.",
+            "06-29":"On this day in 2007, the first iPhone went on sale at Apple stores across the US.",
+            "07-04":"On this day in 1776, the United States Declaration of Independence was adopted.",
+            "07-20":"On this day in 1969, Neil Armstrong and Buzz Aldrin walked on the Moon.",
+            "08-06":"On this day in 1991, the World Wide Web became publicly available.",
+            "09-05":"On this day in 1946, Freddie Mercury was born in Zanzibar.",
+            "09-09":"On this day in 2014, Apple unveiled the Apple Watch for the first time.",
+            "10-29":"On this day in 1969, the first ARPANET message was sent from UCLA to Stanford.",
+            "11-10":"On this day in 1983, Bill Gates introduced Windows 1.0.",
+            "12-25":"On this day in 1990, Tim Berners-Lee made the first successful HTTP communication.",
+        };
+
+        // ─── Preferences parser ──────────────────────────────────
+        let prefs = null;
+        function parsePreferencesMd(md) {
+            const p = { articlesPerSection:6, location:'', prefsUrl:'', sections:[], customTopics:[], requests:'', displayOptions:{} };
+            const artMatch = md.match(/\*\*Articles per section:\*\*\s*(\d+)/i);
+            if (artMatch) p.articlesPerSection = parseInt(artMatch[1]);
+            const locMatch = md.match(/\*\*Location:\*\*\s*(.+)/i);
+            if (locMatch) { const v=locMatch[1].trim(); if(v&&!v.startsWith('*')&&!v.startsWith('(')) p.location=v; }
+            const urlMatch = md.match(/\*\*Preferences URL:\*\*\s*(.+)/i);
+            if (urlMatch) { const v=urlMatch[1].trim(); if(v&&!v.startsWith('*')&&!v.startsWith('(')) p.prefsUrl=v; }
+            const sectionRegex = /- \[(x| )\]\s+(.+)/gi;
+            let m; while((m=sectionRegex.exec(md))!==null) p.sections.push({title:m[2].trim(),enabled:m[1].toLowerCase()==='x'});
+            const ctMatch = md.match(/## Custom Topics[\s\S]*?```\s*([\s\S]*?)```/i);
+            if(ctMatch) p.customTopics=ctMatch[1].split('\n').map(l=>l.trim()).filter(l=>l&&!l.startsWith('#'));
+            const reqMatch = md.match(/## Requests[\s\S]*?```\s*([\s\S]*?)```/i);
+            if(reqMatch) p.requests=reqMatch[1].trim();
+            const dispSection = md.match(/## Section Display Options[\s\S]*$/i);
+            if(dispSection){ const or=/\*\*(.+?):\*\*\s*(.+)/gi; let om; while((om=or.exec(dispSection[0]))!==null) p.displayOptions[om[1].trim().toLowerCase()]=om[2].trim().toLowerCase(); }
+            return p;
+        }
+        async function loadPreferences() {
+            const savedUrl = localStorage.getItem('rundownPrefsUrl');
+            const urls = []; if(savedUrl) urls.push(savedUrl); urls.push('preferences.md');
+            for(const url of urls){ try{ const r=await fetch(url,{cache:'no-cache'}); if(r.ok){ const md=await r.text(); const p=parsePreferencesMd(md);
+                if(p.prefsUrl&&p.prefsUrl!==url&&!savedUrl){ try{const r2=await fetch(p.prefsUrl,{cache:'no-cache'}); if(r2.ok){prefs=parsePreferencesMd(await r2.text()); const sl2=localStorage.getItem('rundownLocation'); if(sl2!==null) prefs.location=sl2; localStorage.setItem('rundownPrefsUrl',p.prefsUrl); return;}}catch(e){} }
+                prefs=p; const sl=localStorage.getItem('rundownLocation'); if(sl!==null) prefs.location=sl; return; }}catch(e){} }
+            prefs={articlesPerSection:6,location:'',prefsUrl:'',sections:Object.keys(SECTION_REGISTRY).map(t=>({title:t.split(' ').map(w=>w[0].toUpperCase()+w.slice(1)).join(' '),enabled:true})),customTopics:[],requests:'',displayOptions:{}};
+            const sl=localStorage.getItem('rundownLocation'); if(sl!==null) prefs.location=sl;
+        }
+        function getActiveSections(){
+            const active=[];
+            for(const sec of prefs.sections){ if(!sec.enabled) continue; const key=sec.title.toLowerCase(); const reg=SECTION_REGISTRY[key]; if(reg) active.push({...reg,title:sec.title}); }
+            for(const sub of prefs.customTopics) active.push({id:'custom_'+sub,icon:'\u2B50',title:'r/'+sub,theme:'section-custom',subreddits:[sub],hnMix:false});
+            return active;
+        }
+        function getSectionDisplayOption(sectionId){
+            for(const [name,opt] of Object.entries(prefs.displayOptions)){ const reg=SECTION_REGISTRY[name.toLowerCase()]; if(reg&&reg.id===sectionId) return opt; }
+            return null;
+        }
+
+        // ─── Init ────────────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', async()=>{ initDarkMode(); setDateAndGreeting(); await loadPreferences(); const savedReqs=localStorage.getItem('rundownRequests'); if(savedReqs!==null) prefs.requests=savedReqs; loadNewsletter(); });
+
+        function initDarkMode(){ const saved=localStorage.getItem('newsletterDarkMode'); const dark=saved!==null?saved==='true':(window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches); if(dark){document.body.classList.add('dark-mode');document.querySelector('.dark-mode-toggle').textContent='\u2600\uFE0F';} }
+        function toggleDarkMode(){ document.body.classList.toggle('dark-mode'); const d=document.body.classList.contains('dark-mode'); localStorage.setItem('newsletterDarkMode',d); document.querySelector('.dark-mode-toggle').textContent=d?'\u2600\uFE0F':'\u{1F319}'; }
+
+        function setDateAndGreeting(){
+            const now=new Date(); document.getElementById('currentDate').textContent=now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+            const h=now.getHours(); let g='Good morning!'; if(h>=12&&h<17) g='Good afternoon!'; else if(h>=17) g='Good evening!';
+            const dn=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][now.getDay()];
+            const gs=[`${g} Happy ${dn}.`,`${g} Here's your ${dn} briefing.`,`${g} Let's get you caught up.`,`${g} Ready for ${dn}?`];
+            document.getElementById('greeting').textContent=gs[Math.floor(Math.random()*gs.length)];
+            document.getElementById('daySummary').textContent='Here\u2019s what\u2019s happening in the world today \u2014 your personalized briefing across news, tech, entertainment, and more.';
+        }
+
+        // ─── Drawer ──────────────────────────────────────────────
+        function openDrawer(){ renderDrawerBody(); document.getElementById('drawerOverlay').classList.add('open'); document.getElementById('drawer').classList.add('open'); }
+        function closeDrawer(){ document.getElementById('drawerOverlay').classList.remove('open'); document.getElementById('drawer').classList.remove('open'); }
+        function renderDrawerBody(){
+            const body=document.getElementById('drawerBody');
+            let t=prefs.sections.map(sec=>{const key=sec.title.toLowerCase();const reg=SECTION_REGISTRY[key];const icon=reg?reg.icon:'\u2B50';
+                return '<div class="toggle-row"><div class="toggle-label"><span class="toggle-emoji">'+icon+'</span><span>'+sec.title+'</span></div><label class="switch"><input type="checkbox" data-section-title="'+sec.title+'" '+(sec.enabled?'checked':'')+'><span class="slider"></span></label></div>';}).join('');
+            let chips=prefs.customTopics.map((s,i)=>'<span class="custom-topic-chip">r/'+escapeHtml(s)+'<button class="remove-topic" onclick="removeCustomTopic('+i+')">&times;</button></span>').join('');
+            const savedReqs=localStorage.getItem('rundownRequests')||prefs.requests||'';
+            const activeKeywords=parseRequestKeywords(savedReqs);
+            const keywordsHtml=activeKeywords.length?'<div class="requests-active"><div class="requests-active-title">Active Filters</div>'+activeKeywords.map(k=>'<span class="requests-keyword">'+escapeHtml(k.label)+'</span>').join('')+'</div>':'';
+            body.innerHTML='<div class="drawer-section"><div class="drawer-section-title">Articles Per Section</div><div class="toggle-row"><div class="toggle-label">Number of articles</div><div class="stepper"><button class="stepper-btn" onclick="adjustCount(-1)">&minus;</button><span class="stepper-val" id="articleCount">'+prefs.articlesPerSection+'</span><button class="stepper-btn" onclick="adjustCount(1)">+</button></div></div></div>'
+                +'<div class="drawer-section"><div class="drawer-section-title">Sections</div>'+t+'</div>'
+                +'<div class="drawer-section"><div class="drawer-section-title">Context Window</div><p style="font-size:13px;color:#888;margin-bottom:8px">Tell the newsletter what you want in plain English. It will adjust your feed based on keywords and intent.</p><textarea class="requests-textarea" id="requestsInput" placeholder="e.g. More NBA content\nFocus on AI breakthroughs\nLess politics in Top Stories\nShow cooking recipes on weekends">'+escapeHtml(savedReqs)+'</textarea>'+keywordsHtml+'</div>'
+                +'<div class="drawer-section"><div class="drawer-section-title">Custom Topics</div><p style="font-size:13px;color:#888;margin-bottom:8px">Add any subreddit as a custom section.</p><div class="add-topic-row"><input type="text" id="customSubreddit" placeholder="e.g. space, nba, vinyl" /><button class="add-topic-btn" onclick="addCustomTopic()">Add</button></div><div class="custom-topics-list">'+chips+'</div></div>'
+                +'<div class="drawer-section"><div class="drawer-section-title">Location</div><p style="font-size:13px;color:#888;margin-bottom:8px">City, state, or zip code for weather.</p><input class="prefs-url-input" id="locationInput" type="text" placeholder="e.g. 46033, Carmel IN, London" value="'+escapeHtml(prefs.location||'')+'" /></div>'
+                +'<div class="drawer-section"><div class="drawer-section-title">Preferences File</div><p class="prefs-hint">Load settings from an external URL (e.g. GitHub Gist raw link). Leave blank for local preferences.md.</p><input class="prefs-url-input" id="prefsUrlInput" type="url" placeholder="https://gist.githubusercontent.com/..." value="'+escapeHtml(prefs.prefsUrl||'')+'" /></div>';
+        }
+        function adjustCount(d){ prefs.articlesPerSection=Math.max(3,Math.min(12,prefs.articlesPerSection+d)); document.getElementById('articleCount').textContent=prefs.articlesPerSection; }
+        function addCustomTopic(){ const input=document.getElementById('customSubreddit'); const v=input.value.trim().replace(/^r\//,'').replace(/\s+/g,''); if(!v)return; if(prefs.customTopics.some(c=>c.toLowerCase()===v.toLowerCase()))return; prefs.customTopics.push(v); input.value=''; renderDrawerBody(); }
+        function removeCustomTopic(i){ prefs.customTopics.splice(i,1); renderDrawerBody(); }
+        function saveAndReload(){
+            document.querySelectorAll('[data-section-title]').forEach(cb=>{const t=cb.dataset.sectionTitle;const s=prefs.sections.find(x=>x.title===t);if(s)s.enabled=cb.checked;});
+            const u=document.getElementById('prefsUrlInput'); if(u){const v=u.value.trim();if(v)localStorage.setItem('rundownPrefsUrl',v);else localStorage.removeItem('rundownPrefsUrl');}
+            const reqEl=document.getElementById('requestsInput'); if(reqEl){const rv=reqEl.value.trim();localStorage.setItem('rundownRequests',rv);prefs.requests=rv;}
+            const locEl=document.getElementById('locationInput'); if(locEl){const lv=locEl.value.trim();localStorage.setItem('rundownLocation',lv);prefs.location=lv;}
+            closeDrawer(); loadNewsletter();
+        }
+
+        // ─── NLP Request Parser ───────────────────────────────────
+        function parseRequestKeywords(text){
+            if(!text||!text.trim()) return [];
+            const rules=[];
+            const lines=text.split('\n').map(l=>l.replace(/^[-*]\s*/,'').trim()).filter(l=>l);
+            // Known topic keywords → subreddit mappings
+            const topicMap={
+                'nba':['nba'],'basketball':['nba'],'football':['nfl'],'nfl':['nfl'],'soccer':['soccer'],
+                'baseball':['baseball'],'mlb':['baseball'],'hockey':['hockey'],'nhl':['hockey'],
+                'ai':['artificial','MachineLearning','ClaudeAI','ChatGPT'],'machine learning':['MachineLearning'],
+                'crypto':['cryptocurrency'],'bitcoin':['bitcoin'],'stocks':['stocks','wallstreetbets'],
+                'cooking':['cooking','recipes'],'recipes':['recipes','cooking'],
+                'fitness':['fitness'],'workout':['fitness','bodyweightfitness'],
+                'programming':['programming','learnprogramming'],'coding':['programming'],
+                'movies':['movies'],'tv':['television'],'anime':['anime'],
+                'music':['Music','listentothis'],'gaming':['gaming'],'space':['space'],
+                'science':['science'],'physics':['physics'],'math':['math'],
+                'politics':['politics'],'world news':['worldnews'],'news':['news'],
+            };
+            for(const line of lines){
+                const lower=line.toLowerCase();
+                // "More X" → boost: add extra subreddits for that topic
+                const moreMatch=lower.match(/^(?:more|extra|add|include|focus on|i (?:want|like|love))\s+(.+)/);
+                if(moreMatch){
+                    const topic=moreMatch[1].replace(/\s*content$/,'').replace(/\s*articles$/,'').replace(/\s*stories$/,'').replace(/\s*stuff$/,'').trim();
+                    const subs=topicMap[topic];
+                    if(subs) rules.push({type:'boost',topic,subreddits:subs,label:'More '+topic});
+                    else rules.push({type:'boost',topic,subreddits:[topic.replace(/\s+/g,'')],label:'More '+topic});
+                    continue;
+                }
+                // "Less X" / "No X" → demote: filter out content matching keywords
+                const lessMatch=lower.match(/^(?:less|fewer|no|remove|hide|skip|avoid|don'?t show|not interested in)\s+(.+)/);
+                if(lessMatch){
+                    let target=lessMatch[1].replace(/\s*content$/,'').replace(/\s*articles$/,'').replace(/\s*stories$/,'').replace(/\s*stuff$/,'').trim();
+                    // Handle "in Section" suffix
+                    const inSection=target.match(/(.+?)\s+in\s+(.+)$/);
+                    if(inSection) rules.push({type:'demote',keywords:inSection[1].split(/\s+/),section:inSection[2].trim(),label:'Less '+inSection[1]+' in '+inSection[2]});
+                    else rules.push({type:'demote',keywords:target.split(/\s+/),section:null,label:'Less '+target});
+                    continue;
+                }
+                // "Show X on weekends/weekdays" → conditional
+                const condMatch=lower.match(/^show\s+(.+?)\s+on\s+(weekends?|weekdays?|(?:mon|tues?|wed(?:nes)?|thu(?:rs)?|fri|sat(?:ur)?|sun)(?:days?)?)/);
+                if(condMatch){
+                    rules.push({type:'conditional',topic:condMatch[1],day:condMatch[2],label:line});
+                    continue;
+                }
+                // Fallback: treat whole line as a boost keyword
+                for(const [key,subs] of Object.entries(topicMap)){
+                    if(lower.includes(key)){rules.push({type:'boost',topic:key,subreddits:subs,label:line});break;}
+                }
+            }
+            return rules;
+        }
+
+        function applyRequestFilters(sectionId, sectionTitle, stories){
+            const reqText=localStorage.getItem('rundownRequests')||prefs.requests||'';
+            const rules=parseRequestKeywords(reqText);
+            if(!rules.length) return stories;
+            let filtered=[...stories];
+            for(const rule of rules){
+                if(rule.type==='demote'){
+                    // If scoped to a section, only apply to that section
+                    if(rule.section){
+                        const scopeMatch=sectionTitle.toLowerCase().includes(rule.section.toLowerCase())||sectionId.toLowerCase().includes(rule.section.toLowerCase());
+                        if(!scopeMatch) continue;
+                    }
+                    // Filter out stories whose title contains demoted keywords
+                    filtered=filtered.filter(s=>{
+                        const title=s.title.toLowerCase();
+                        return !rule.keywords.some(kw=>title.includes(kw));
+                    });
+                }
+            }
+            return filtered;
+        }
+
+        function getBoostSubreddits(){
+            const reqText=localStorage.getItem('rundownRequests')||prefs.requests||'';
+            const rules=parseRequestKeywords(reqText);
+            const boosts=[];
+            const now=new Date(); const day=now.getDay(); const isWeekend=day===0||day===6;
+            for(const rule of rules){
+                if(rule.type==='boost'&&rule.subreddits) boosts.push(...rule.subreddits);
+                if(rule.type==='conditional'){
+                    const d=rule.day.toLowerCase();
+                    const active=(d.startsWith('weekend')&&isWeekend)||(d.startsWith('weekday')&&!isWeekend);
+                    if(active){
+                        const subs=Object.entries({
+                            'cooking':['cooking','recipes'],'recipes':['recipes','cooking'],
+                            'nba':['nba'],'gaming':['gaming'],'movies':['movies']
+                        });
+                        for(const [key,val] of subs){ if(rule.topic.includes(key)) boosts.push(...val); }
+                    }
+                }
+            }
+            return [...new Set(boosts)];
+        }
+
+        // ─── Fetch helpers ───────────────────────────────────────
+        function shuffle(arr){ for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+        function getYesterdayCutoff(){ const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()-1,0,1,0).getTime()/1000; }
+        async function fetchReddit(subreddit, limit=6){
+            try{ const fetchLimit=Math.min(limit*5,50);
+                const r=await fetch('https://www.reddit.com/r/'+subreddit+'/hot.json?limit='+fetchLimit+'&raw_json=1',{headers:{'Accept':'application/json'}});
+                if(!r.ok) throw new Error('Reddit '+r.status); const d=await r.json();
+                const cutoff=getYesterdayCutoff();
+                const all=d.data.children.filter(c=>!c.data.stickied);
+                const recent=all.filter(c=>c.data.created_utc>=cutoff);
+                const source=recent.length>=limit?recent:all;
+                return shuffle(source.map(c=>({title:c.data.title,summary:c.data.selftext?c.data.selftext.substring(0,160)+(c.data.selftext.length>160?'...':''):'',url:c.data.url.startsWith('/r/')?'https://www.reddit.com'+c.data.url:c.data.url,score:c.data.score,source:'r/'+subreddit,comments:c.data.num_comments}))).slice(0,limit);
+            }catch(e){console.warn('Failed r/'+subreddit,e);return [];}
+        }
+        async function fetchMultiReddit(subs, limit=6){
+            if(subs.length===1) return fetchReddit(subs[0],limit);
+            const per=Math.max(2,Math.ceil(limit/subs.length));
+            const results=await Promise.all(subs.map(s=>fetchReddit(s,per)));
+            const merged=results.flat(); merged.sort((a,b)=>b.score-a.score); return merged.slice(0,limit);
+        }
+        async function fetchHackerNews(limit=8){
+            try{ const fetchLimit=Math.min(limit*4,40);
+                const r=await fetch('https://hacker-news.firebaseio.com/v0/topstories.json'); if(!r.ok) throw new Error('HN '+r.status);
+                const ids=await r.json(); const top=ids.slice(0,fetchLimit);
+                const stories=await Promise.all(top.map(id=>fetch('https://hacker-news.firebaseio.com/v0/item/'+id+'.json').then(r=>r.json())));
+                const cutoff=getYesterdayCutoff();
+                const recent=stories.filter(s=>s&&s.time>=cutoff);
+                const source=recent.length>=limit?recent:stories.filter(s=>s);
+                return shuffle(source.map(s=>({title:s.title,summary:'',url:s.url||'https://news.ycombinator.com/item?id='+s.id,score:s.score,source:'Hacker News',comments:s.descendants||0}))).slice(0,limit);
+            }catch(e){console.warn('Failed HN',e);return [];}
+        }
+        async function fetchWeather(){
+            try{ const loc=prefs&&prefs.location?encodeURIComponent(prefs.location):''; const r=await fetch('https://wttr.in/'+loc+'?format=j1',{headers:{'Accept':'application/json'}}); if(!r.ok) throw new Error('Weather '+r.status);
+                const d=await r.json(); const c=d.current_condition[0]; const a=d.nearest_area[0];
+                return {temp:c.temp_F,feels:c.FeelsLikeF,desc:c.weatherDesc[0].value,humidity:c.humidity,city:a.areaName[0].value,region:a.region[0].value,code:parseInt(c.weatherCode)};
+            }catch(e){console.warn('Failed weather',e);return null;}
+        }
+        function getWeatherEmoji(code){
+            if(code===113)return'\u2600\uFE0F';if(code===116)return'\u26C5';if([119,122].includes(code))return'\u2601\uFE0F';
+            if([143,248,260].includes(code))return'\u{1F32B}\uFE0F';if([176,263,266,293,296,299,302,305,308,311,314,353,356,359].includes(code))return'\u{1F327}\uFE0F';
+            if([179,182,185,227,230,317,320,323,326,329,332,335,338,350,362,365,368,371,374,377,392,395].includes(code))return'\u{1F328}\uFE0F';
+            if([200,386,389].includes(code))return'\u26C8\uFE0F';return'\u{1F324}\uFE0F';
+        }
+
+        // ─── Render ──────────────────────────────────────────────
+        function renderWeather(w){
+            const mEl=document.getElementById('mobileWeather');
+            if(!w){mEl.innerHTML='';return;}
+            const e=getWeatherEmoji(w.code);
+            const locLabel=prefs&&prefs.location?escapeHtml(prefs.location):(w.city+', '+w.region);
+            mEl.innerHTML='<div class="weather-strip"><div class="weather-icon">'+e+'</div><div class="weather-info"><div class="weather-temp">'+w.temp+'\u00B0F (feels '+w.feels+'\u00B0F)</div><div class="weather-desc">'+w.desc+' \u2022 '+locLabel+' \u2022 '+w.humidity+'% humidity</div></div></div>';
+        }
+        function renderSection(section,stories,displayOpt){
+            if(!stories||stories.length===0) return '';
+            const titlesOnly=displayOpt==='titles-only';
+            const tags=['hot','trending','new'];
+            const sh=stories.map((s,i)=>{
+                const tag=i===0?'<span class="story-tag tag-'+tags[Math.floor(Math.random()*tags.length)]+'">'+tags[Math.floor(Math.random()*tags.length)]+'</span>':'';
+                const sum=(!titlesOnly&&s.summary)?'<div class="story-summary">'+escapeHtml(s.summary)+'</div>':'';
+                return '<div class="story"><div class="story-headline"><a href="'+escapeHtml(s.url)+'" target="_blank" rel="noopener">'+escapeHtml(s.title)+'</a></div>'+sum+'<div class="story-meta">'+tag+'<span>'+s.source+'</span>'+(s.comments?'<span>'+s.comments+' comments</span>':'')+'</div></div>';
+            }).join('');
+            const sid=section.id+'_sec';
+            return '<div class="section '+section.theme+'"><div class="section-header" onclick="toggleSection(\''+sid+'\')"><div class="section-icon">'+section.icon+'</div><div class="section-title">'+section.title+'</div><div class="collapse-chevron">\u25BC</div></div><div class="section-body" id="'+sid+'">'+sh+'</div></div>';
+        }
+        function toggleSection(id){ const b=document.getElementById(id); b.classList.toggle('collapsed'); b.previousElementSibling.classList.toggle('collapsed'); }
+        function toggleAllSections(){ const bodies=document.querySelectorAll('.section-body'); const anyExpanded=[...bodies].some(b=>!b.classList.contains('collapsed')); bodies.forEach(b=>{if(anyExpanded){b.classList.add('collapsed');b.previousElementSibling.classList.add('collapsed');}else{b.classList.remove('collapsed');b.previousElementSibling.classList.remove('collapsed');}}); }
+        function renderQuote(){ const q=QUOTES[Math.floor(Math.random()*QUOTES.length)]; return '<div class="quote-card"><div class="quote-text">\u201C'+escapeHtml(q.text)+'\u201D</div><div class="quote-author">\u2014 '+escapeHtml(q.author)+'</div></div>'; }
+        function renderOnThisDay(){ const n=new Date(); const k=String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); const f=ON_THIS_DAY[k]; if(!f)return''; return '<div class="on-this-day"><h3>\u{1F4C5} On This Day</h3><p>'+escapeHtml(f)+'</p></div>'; }
+        function renderFooter(){ return '<div class="footer"><p>Your Morning Rundown &bull; Brewed fresh at '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</p></div>'; }
+        function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+        // ─── Main load ───────────────────────────────────────────
+        async function loadNewsletter(){
+            const el=document.getElementById('newsletterContent'); const secs=getActiveSections(); const limit=prefs.articlesPerSection;
+            // Add boost subreddits from requests as extra sections
+            const boosts=getBoostSubreddits();
+            const existingSubs=new Set(secs.flatMap(s=>s.subreddits.map(r=>r.toLowerCase())));
+            const newBoosts=boosts.filter(b=>!existingSubs.has(b.toLowerCase()));
+            for(const sub of newBoosts) secs.push({id:'boost_'+sub,icon:'\u{1F525}',title:'r/'+sub,theme:'section-custom',subreddits:[sub],hnMix:false});
+
+            el.innerHTML=secs.map(s=>'<div class="section '+s.theme+'"><div class="section-header"><div class="section-icon">'+s.icon+'</div><div class="section-title">'+s.title+'</div><div class="collapse-chevron">\u25BC</div></div><div style="padding:16px 20px"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line medium"></div><div class="skeleton skeleton-line short"></div></div></div>').join('');
+            const needHN=secs.some(s=>s.hnMix); const hnLimit=needHN?Math.max(8,limit):0;
+            const [weather,hnStories,...results]=await Promise.all([fetchWeather(),needHN?fetchHackerNews(hnLimit):Promise.resolve([]),...secs.map(s=>fetchMultiReddit(s.subreddits,limit+4))]);
+            renderWeather(weather);
+            let html='';
+            for(let i=0;i<secs.length;i++){
+                const sec=secs[i]; let stories=results[i]||[]; const dopt=getSectionDisplayOption(sec.id);
+                if(sec.hnMix&&hnStories.length){
+                    const hn=sec.id==='headlines'?hnStories.slice(0,Math.ceil(limit/2)):hnStories.slice(Math.ceil(limit/2),Math.ceil(limit/2)+Math.floor(limit/3));
+                    stories=[...hn,...stories.slice(0,limit-hn.length)];
+                }
+                // Apply NLP request filters (demote/hide matching stories)
+                stories=applyRequestFilters(sec.id,sec.title,stories);
+                html+=renderSection(sec,stories.slice(0,limit),dopt);
+            }
+            html+=renderQuote()+renderOnThisDay()+renderFooter();
+            el.innerHTML=html;
+        }
+        function refreshNewsletter(){ const b=document.querySelector('.refresh-btn'); b.classList.add('spinning'); setTimeout(()=>b.classList.remove('spinning'),600); loadNewsletter(); }
+
+        // ─── Service worker & install ────────────────────────────
+        if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+        let deferredPrompt=null;
+        window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;showInstallBanner('android');});
+        function isIOS(){return/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);}
+        function isStandalone(){return window.navigator.standalone===true||window.matchMedia('(display-mode:standalone)').matches;}
+        function showInstallBanner(p){if(localStorage.getItem('installDismissed'))return;if(p==='ios'){document.getElementById('installDesc').innerHTML='Tap <strong>Share</strong> \u27A1 <strong>Add to Home Screen</strong>';document.getElementById('installBtn').textContent='Got it';}setTimeout(()=>document.getElementById('installBanner').classList.add('visible'),1500);}
+        function handleInstall(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;document.getElementById('installBanner').classList.remove('visible');});}else{dismissInstall();}}
+        function dismissInstall(){document.getElementById('installBanner').classList.remove('visible');localStorage.setItem('installDismissed','true');}
+        if(isIOS()&&!isStandalone()) showInstallBanner('ios');
+    </script>
+</body>
+</html>
