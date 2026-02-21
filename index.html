@@ -317,11 +317,16 @@
             if(dispSection){ const or=/\*\*(.+?):\*\*\s*(.+)/gi; let om; while((om=or.exec(dispSection[0]))!==null) p.displayOptions[om[1].trim().toLowerCase()]=om[2].trim().toLowerCase(); }
             return p;
         }
+        function isValidPrefs(p) {
+            return p && Array.isArray(p.sections) && p.sections.length > 0 && typeof p.articlesPerSection === 'number';
+        }
         async function loadPreferences() {
             const savedUrl = localStorage.getItem('rundownPrefsUrl');
             const urls = []; if(savedUrl) urls.push(savedUrl); urls.push('preferences.md');
-            for(const url of urls){ try{ const r=await fetch(url,{cache:'no-cache'}); if(r.ok){ const md=await r.text(); const p=parsePreferencesMd(md);
-                if(p.prefsUrl&&p.prefsUrl!==url&&!savedUrl){ try{const r2=await fetch(p.prefsUrl,{cache:'no-cache'}); if(r2.ok){prefs=parsePreferencesMd(await r2.text()); const sl2=localStorage.getItem('rundownLocation'); if(sl2!==null) prefs.location=sl2; localStorage.setItem('rundownPrefsUrl',p.prefsUrl); return;}}catch(e){} }
+            for(const url of urls){ try{ const r=await fetch(url,{cache:'no-cache'}); if(r.ok){ const md=await r.text();
+                if(md.trimStart().startsWith('<')) throw new Error('Got HTML instead of markdown');
+                const p=parsePreferencesMd(md); if(!isValidPrefs(p)) throw new Error('Invalid prefs');
+                if(p.prefsUrl&&p.prefsUrl!==url&&!savedUrl){ try{const r2=await fetch(p.prefsUrl,{cache:'no-cache'}); if(r2.ok){const md2=await r2.text(); if(!md2.trimStart().startsWith('<')){const p2=parsePreferencesMd(md2); if(isValidPrefs(p2)){prefs=p2; const sl2=localStorage.getItem('rundownLocation'); if(sl2!==null) prefs.location=sl2; localStorage.setItem('rundownPrefsUrl',p.prefsUrl); return;}}}}catch(e){} }
                 prefs=p; const sl=localStorage.getItem('rundownLocation'); if(sl!==null) prefs.location=sl; return; }}catch(e){} }
             prefs={articlesPerSection:6,location:'',prefsUrl:'',sections:Object.keys(SECTION_REGISTRY).map(t=>({title:t.split(' ').map(w=>w[0].toUpperCase()+w.slice(1)).join(' '),enabled:true})),customTopics:[],requests:'',displayOptions:{}};
             const sl=localStorage.getItem('rundownLocation'); if(sl!==null) prefs.location=sl;
