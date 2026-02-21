@@ -1,4 +1,4 @@
-const CACHE_NAME = 'morning-rundown-v1';
+const CACHE_NAME = 'newsletter-cache-v2';
 const SHELL_ASSETS = [
     './index.html',
     './manifest.json',
@@ -35,6 +35,12 @@ self.addEventListener('fetch', event => {
                 .then(response => response)
                 .catch(() => caches.match(event.request))
         );
+        return;
+    }
+
+    // Never cache markdown preference files — always fetch fresh
+    if (url.pathname.endsWith('.md')) {
+        event.respondWith(fetch(event.request));
         return;
     }
 
