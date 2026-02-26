@@ -7,6 +7,7 @@ Edit this file to customize your newsletter. The app reads this on each load.
 - **Articles per section:** 6
 - **Location:** 46033
 - **Preferences URL:**
+- **Theme:** matrix
 
 ## Sections
 
