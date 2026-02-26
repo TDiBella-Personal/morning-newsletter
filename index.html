@@ -160,6 +160,9 @@
         .requests-active{background:#001a00;border:1px solid #003300;border-radius:2px;padding:12px 14px;margin-top:10px;font-size:12px;line-height:1.6;color:#00b300}
         .requests-active-title{font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#00ff41;margin-bottom:6px}
         .requests-keyword{display:inline-block;padding:2px 8px;border-radius:2px;background:#003300;color:#00ff41;border:1px solid #00ff41;font-size:11px;font-weight:600;margin:2px 3px 2px 0}
+        .copy-prefs-btn{width:100%;margin-top:8px;padding:10px;border-radius:2px;border:1px solid #003300;background:#000;color:#008f11;font-size:11px;cursor:pointer;font-family:inherit;letter-spacing:2px;text-transform:uppercase}
+        .copy-prefs-btn:hover{border-color:#00ff41;color:#00ff41}
+        .copy-prefs-btn.copied{border-color:#00ff41;color:#00ff41;box-shadow:0 0 8px rgba(0,255,65,.3)}
     </style>
 </head>
 <body>
@@ -172,7 +175,7 @@
     <div class="drawer" id="drawer">
         <div class="drawer-header"><h2>&#x2699;&#xFE0F; My Rundown</h2><button class="drawer-close" onclick="closeDrawer()">&times;</button></div>
         <div class="drawer-body" id="drawerBody"></div>
-        <div class="drawer-footer"><button class="save-btn" onclick="saveAndReload()">Save &amp; Refresh</button></div>
+        <div class="drawer-footer"><button class="save-btn" onclick="saveAndReload()">Save &amp; Refresh</button><button class="copy-prefs-btn" id="copyPrefsBtn" onclick="copyPreferencesMd()">&#x1F4CB; Copy preferences.md</button></div>
     </div>
 
     <div class="install-banner" id="installBanner">
@@ -337,8 +340,8 @@
             const keywordsHtml=activeKeywords.length?'<div class="requests-active"><div class="requests-active-title">Active Filters</div>'+activeKeywords.map(k=>'<span class="requests-keyword">'+escapeHtml(k.label)+'</span>').join('')+'</div>':'';
             body.innerHTML='<div class="drawer-section"><div class="drawer-section-title">Articles Per Section</div><div class="toggle-row"><div class="toggle-label">Number of articles</div><div class="stepper"><button class="stepper-btn" onclick="adjustCount(-1)">&minus;</button><span class="stepper-val" id="articleCount">'+prefs.articlesPerSection+'</span><button class="stepper-btn" onclick="adjustCount(1)">+</button></div></div></div>'
                 +'<div class="drawer-section"><div class="drawer-section-title">Sections</div>'+t+'</div>'
-                +'<div class="drawer-section"><div class="drawer-section-title">Context Window</div><p style="font-size:13px;color:#888;margin-bottom:8px">Tell the newsletter what you want in plain English. It will adjust your feed based on keywords and intent.</p><textarea class="requests-textarea" id="requestsInput" placeholder="e.g. More NBA content\nFocus on AI breakthroughs\nLess politics in Top Stories\nShow cooking recipes on weekends">'+escapeHtml(savedReqs)+'</textarea>'+keywordsHtml+'</div>'
-                +'<div class="drawer-section"><div class="drawer-section-title">Custom Topics</div><p style="font-size:13px;color:#888;margin-bottom:8px">Add any subreddit as a custom section.</p><div class="add-topic-row"><input type="text" id="customSubreddit" placeholder="e.g. space, nba, vinyl" /><button class="add-topic-btn" onclick="addCustomTopic()">Add</button></div><div class="custom-topics-list">'+chips+'</div></div>'
+                +'<div class="drawer-section"><div class="drawer-section-title">Context Window</div><p style="font-size:13px;color:#008f11;margin-bottom:8px">Tell the newsletter what you want in plain English. It will adjust your feed based on keywords and intent.</p><textarea class="requests-textarea" id="requestsInput" placeholder="e.g. More NBA content\nFocus on AI breakthroughs\nLess politics in Top Stories\nShow cooking recipes on weekends">'+escapeHtml(savedReqs)+'</textarea>'+keywordsHtml+'</div>'
+                +'<div class="drawer-section"><div class="drawer-section-title">Custom Topics</div><p style="font-size:13px;color:#008f11;margin-bottom:8px">Add any subreddit as a custom section.</p><div class="add-topic-row"><input type="text" id="customSubreddit" placeholder="e.g. space, nba, vinyl" /><button class="add-topic-btn" onclick="addCustomTopic()">Add</button></div><div class="custom-topics-list">'+chips+'</div></div>'
                 +'<div class="drawer-section"><div class="drawer-section-title">Preferences File</div><p class="prefs-hint">Load settings from an external URL (e.g. GitHub Gist raw link). Leave blank for local preferences.md.</p><input class="prefs-url-input" id="prefsUrlInput" type="url" placeholder="https://gist.githubusercontent.com/..." value="'+escapeHtml(prefs.prefsUrl||'')+'" /></div>';
         }
         function adjustCount(d){ prefs.articlesPerSection=Math.max(3,Math.min(12,prefs.articlesPerSection+d)); document.getElementById('articleCount').textContent=prefs.articlesPerSection; }
@@ -346,9 +349,32 @@
         function removeCustomTopic(i){ prefs.customTopics.splice(i,1); renderDrawerBody(); }
         function saveAndReload(){
             document.querySelectorAll('[data-section-title]').forEach(cb=>{const t=cb.dataset.sectionTitle;const s=prefs.sections.find(x=>x.title===t);if(s)s.enabled=cb.checked;});
-            const u=document.getElementById('prefsUrlInput'); if(u){const v=u.value.trim();if(v)localStorage.setItem('rundownPrefsUrl',v);else localStorage.removeItem('rundownPrefsUrl');}
+            const u=document.getElementById('prefsUrlInput'); if(u){const v=u.value.trim();if(v)localStorage.setItem('rundownPrefsUrl',v);else localStorage.removeItem('rundownPrefsUrl'); prefs.prefsUrl=u?u.value.trim():prefs.prefsUrl;}
             const reqEl=document.getElementById('requestsInput'); if(reqEl){const rv=reqEl.value.trim();localStorage.setItem('rundownRequests',rv);prefs.requests=rv;}
             closeDrawer(); loadNewsletter();
+        }
+        function generatePreferencesMd(){
+            // Flush any open drawer state into prefs first
+            document.querySelectorAll('[data-section-title]').forEach(cb=>{const t=cb.dataset.sectionTitle;const s=prefs.sections.find(x=>x.title===t);if(s)s.enabled=cb.checked;});
+            const reqEl=document.getElementById('requestsInput'); const reqs=reqEl?reqEl.value.trim():prefs.requests||'';
+            const prefsUrlEl=document.getElementById('prefsUrlInput'); const prefsUrl=prefsUrlEl?prefsUrlEl.value.trim():prefs.prefsUrl||'';
+            const sectionLines=prefs.sections.map(s=>`- [${s.enabled?'x':' '}] ${s.title}`).join('\n');
+            const customBlock=prefs.customTopics.join('\n')||'';
+            const dispLines=Object.entries(prefs.displayOptions).map(([k,v])=>`- **${k.charAt(0).toUpperCase()+k.slice(1)}:** ${v}`).join('\n')||'';
+            return `# Morning Rundown Preferences\n\nEdit this file to customize your newsletter. The app reads this on each load.\n\n## Settings\n\n- **Articles per section:** ${prefs.articlesPerSection}\n- **Location:** ${prefs.location||''}\n- **Preferences URL:** ${prefsUrl}\n- **Theme:** matrix\n\n## Sections\n\nToggle sections on/off with \`[x]\` (enabled) or \`[ ]\` (disabled). Order here controls display order.\n\n${sectionLines}\n\n## Custom Topics\n\nAdd any subreddit as a custom section (one per line):\n\n\`\`\`\n${customBlock}\n\`\`\`\n\n## Requests\n\nWrite anything here — the app will parse keywords to adjust your feed behind the scenes. This content is never shown in the newsletter UI.\n\n\`\`\`\n${reqs}\n\`\`\`\n\n## Section Display Options\n\nControl how specific sections render:\n\n${dispLines}`;
+        }
+        function copyPreferencesMd(){
+            const md=generatePreferencesMd();
+            const btn=document.getElementById('copyPrefsBtn');
+            navigator.clipboard.writeText(md).then(()=>{
+                btn.textContent='\u2713 Copied!'; btn.classList.add('copied');
+                setTimeout(()=>{btn.innerHTML='\u{1F4CB} Copy preferences.md';btn.classList.remove('copied');},2500);
+            }).catch(()=>{
+                // Fallback: show in a temporary textarea
+                const ta=document.createElement('textarea'); ta.value=md; ta.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80vw;height:60vh;z-index:9999;background:#000;color:#00ff41;border:1px solid #00ff41;padding:12px;font-family:monospace;font-size:12px';
+                document.body.appendChild(ta); ta.select();
+                btn.textContent='Select all \u2197 copy manually'; setTimeout(()=>document.body.removeChild(ta),8000);
+            });
         }
 
         // ─── NLP Request Parser ───────────────────────────────────
