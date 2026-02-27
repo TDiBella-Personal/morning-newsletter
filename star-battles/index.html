@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Star Battles</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>⭐ Star Battles</h1>
+  <p id="status">Place stars so each row, column, and region has exactly <span id="star-count">1</span> star. Stars cannot touch each other.</p>
+  <div id="controls">
+    <button onclick="resetBoard()">Reset</button>
+    <button onclick="checkSolution()">Check</button>
+  </div>
+  <div id="board"></div>
+  <div id="message"></div>
+  <script src="game.js"></script>
+</body>
+</html>
