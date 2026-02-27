@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Star Fleet Battles</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>★ Star Fleet Battles</h1>
+    <div id="turn-info">Turn <span id="turn-num">1</span> &mdash; <span id="phase-name">Energy Allocation</span></div>
+  </header>
+
+  <div id="main">
+    <!-- LEFT: Player status + energy allocation -->
+    <div id="left-panel">
+      <div class="ship-card player-card">
+        <div class="ship-name">⚡ USS Enterprise</div>
+        <div class="stat-row">Hull &nbsp;<meter id="p-hull-meter" min="0" max="30" value="30"></meter> <span id="p-hull">30</span>/30</div>
+        <div class="shields-label">Shields</div>
+        <div class="shield-grid" id="p-shields"></div>
+        <div class="stat-row">Torpedoes: <span id="p-torps">6</span></div>
+        <div class="stat-row">Energy left: <span id="p-energy-left">—</span></div>
+      </div>
+
+      <div class="panel-box" id="energy-panel">
+        <div class="panel-title">⚡ Allocate Energy (10 pts)</div>
+        <div class="alloc-row">
+          <span class="alloc-label">Engines</span>
+          <input type="range" id="sl-move" min="0" max="10" value="4" />
+          <span class="alloc-val" id="vl-move">4</span>
+        </div>
+        <div class="alloc-row">
+          <span class="alloc-label">Shields</span>
+          <input type="range" id="sl-shields" min="0" max="10" value="3" />
+          <span class="alloc-val" id="vl-shields">3</span>
+        </div>
+        <div class="alloc-row">
+          <span class="alloc-label">Weapons</span>
+          <input type="range" id="sl-weapons" min="0" max="10" value="3" />
+          <span class="alloc-val" id="vl-weapons">3</span>
+        </div>
+        <div id="alloc-warn"></div>
+        <button id="btn-confirm-energy" class="btn-primary">Confirm Allocation →</button>
+      </div>
+
+      <div class="panel-box hidden" id="move-panel">
+        <div class="panel-title">🚀 Movement (<span id="move-left">0</span> impulse left)</div>
+        <div class="btn-group">
+          <button id="btn-fwd" class="btn-action">▲ Forward</button>
+          <button id="btn-left" class="btn-action">↰ Turn Left</button>
+          <button id="btn-right" class="btn-action">↱ Turn Right</button>
+        </div>
+        <button id="btn-end-move" class="btn-secondary">Done Moving →</button>
+      </div>
+
+      <div class="panel-box hidden" id="combat-panel">
+        <div class="panel-title">🔥 Combat (<span id="weapon-left">0</span> energy left)</div>
+        <div class="btn-group">
+          <button id="btn-phasers" class="btn-action btn-fire">⚡ Fire Phasers</button>
+          <button id="btn-torpedo" class="btn-action btn-fire">🚀 Fire Torpedo</button>
+        </div>
+        <div id="combat-hint"></div>
+        <button id="btn-end-combat" class="btn-secondary">End Turn →</button>
+      </div>
+    </div>
+
+    <!-- CENTER: Canvas -->
+    <div id="canvas-wrap">
+      <canvas id="grid" width="480" height="480"></canvas>
+      <div id="gameover-overlay" class="hidden">
+        <div id="gameover-msg"></div>
+        <button id="btn-restart" class="btn-primary">Play Again</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Enemy status + log -->
+    <div id="right-panel">
+      <div class="ship-card enemy-card">
+        <div class="ship-name">☠ IKS Klothos</div>
+        <div class="stat-row">Hull &nbsp;<meter id="e-hull-meter" min="0" max="30" value="30"></meter> <span id="e-hull">30</span>/30</div>
+        <div class="shields-label">Shields</div>
+        <div class="shield-grid" id="e-shields"></div>
+      </div>
+
+      <div class="panel-box" id="log-panel">
+        <div class="panel-title">📡 Combat Log</div>
+        <div id="log-entries"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
