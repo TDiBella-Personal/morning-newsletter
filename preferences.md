@@ -4,7 +4,7 @@ Edit this file to customize your newsletter. The app reads this on each load.
 
 ## Settings
 
-- **Articles per section:** 6
+- **Articles per section:** 4
 - **Location:** 46033
 - **Preferences URL:**
 - **Theme:** matrix
