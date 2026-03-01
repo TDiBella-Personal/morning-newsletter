@@ -6,8 +6,8 @@ Edit this file to customize your newsletter. The app reads this on each load.
 
 - **Articles per section:** 4
 - **Location:** 46033
-- **Preferences URL:**
-- **Theme:** matrix
+- **Preferences URL:** - **Theme:** starwars
+- **Theme:** starwars
 
 ## Sections
 
@@ -19,10 +19,10 @@ Toggle sections on/off with `[x]` (enabled) or `[ ]` (disabled). Order here cont
 - [x] AI & Machine Learning
 - [x] Science
 - [x] Movies & TV
-- [x] Music
-- [x] Food & Cooking
-- [x] Finance & Money
-- [x] Health & Fitness
+- [ ] Music
+- [ ] Food & Cooking
+- [ ] Finance & Money
+- [ ] Health & Fitness
 - [x] Work & Productivity
 - [x] Interesting Finds
 
@@ -31,7 +31,7 @@ Toggle sections on/off with `[x]` (enabled) or `[ ]` (disabled). Order here cont
 Add any subreddit as a custom section (one per line):
 
 ```
-space
+ai prompts
 ```
 
 ## Requests
@@ -39,14 +39,11 @@ space
 Write anything here — the app will parse keywords to adjust your feed behind the scenes. This content is never shown in the newsletter UI.
 
 ```
-- More NBA content
-- Focus on AI and machine learning breakthroughs
-- Less politics in Top Stories
-- Show cooking recipes on weekends
+- More Batman items
 ```
 
 ## Section Display Options
 
 Control how specific sections render:
 
-- **Science:** titles-only
+- **Science:** titles-only, first line only
