@@ -1,4 +1,4 @@
-const CACHE_NAME = 'newsletter-cache-v2';
+const CACHE_NAME = 'newsletter-cache-v3';
 const SHELL_ASSETS = [
     './index.html',
     './manifest.json',
