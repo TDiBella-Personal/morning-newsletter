@@ -6,8 +6,8 @@ Edit this file to customize your newsletter. The app reads this on each load.
 
 - **Articles per section:** 4
 - **Location:** 46033
-- **Preferences URL:** - **Theme:** starwars
-- **Theme:** starwars
+- **Preferences URL:**
+- **Theme:** noir
 
 ## Sections
 
@@ -18,6 +18,8 @@ Toggle sections on/off with `[x]` (enabled) or `[ ]` (disabled). Order here cont
 - [x] Tech
 - [x] AI & Machine Learning
 - [x] Science
+- [x] Sports
+- [x] Gaming
 - [x] Movies & TV
 - [ ] Music
 - [ ] Food & Cooking
